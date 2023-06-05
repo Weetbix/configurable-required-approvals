@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import * as yaml from 'yaml'
 import {context, getOctokit} from '@actions/github'
 import {minimatch} from 'minimatch'
 
@@ -33,12 +34,41 @@ function hasChangedFilesMatchingPatterns(
   )
 }
 
+const parseRequirementsYaml = (requirements: string): Requirement[] => {
+  const parsed = yaml.parse(requirements)
+  if (!Array.isArray(parsed)) {
+    throw new Error('Requirements must be an array')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return parsed.map((requirement: any) => {
+    if (typeof requirement !== 'object') {
+      throw new Error('Requirement must be an object')
+    }
+
+    if (!Array.isArray(requirement.patterns)) {
+      throw new Error('Requirement must have a patterns array')
+    }
+
+    if (typeof requirement.requiredApprovals !== 'number') {
+      throw new Error('Requirement must have a requiredApprovals number')
+    }
+
+    return {
+      patterns: requirement.patterns,
+      requiredApprovals: requirement.requiredApprovals,
+    }
+  })
+}
+
 async function run(): Promise<void> {
   try {
     const config: Config = {
-      requirements: core.getInput('requirements', {
-        required: true,
-      }) as unknown as Requirement[],
+      requirements: parseRequirementsYaml(
+        core.getInput('requirements', {
+          required: true,
+        }),
+      ),
       token: core.getInput('github-token', {required: true}),
     }
 
