@@ -20,8 +20,8 @@ jobs:
         with:
           requirements: |
             - patterns:
-                - "*.js"
-              requiredApprovals: 1
+                - "**/*"
+              requiredApprovals: 2
             - patterns:
                 - ".github/**/*"
               requiredApprovals: 1
