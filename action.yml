@@ -2,10 +2,12 @@ name: 'Required Approvals'
 description: 'Checks that a PR has the required approvals for certain filepaths'
 author: 'John Hannagan'
 inputs:
-  milliseconds: # change this
+  requirements:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'A yaml list of requirements'
+  github-token:
+    required: true
+    description: 'The github token to use for API calls'
 runs:
   using: 'node16'
   main: 'dist/index.js'
