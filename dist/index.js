@@ -103,7 +103,7 @@ function run() {
                     const approvals = reviews.filter(review => review.state === 'APPROVED').length;
                     if (approvals < requirement.requiredApprovals) {
                         actionFailed = true;
-                        core.info(`Required approvals not met for files matching patterns: ${requirement.patterns.join(', ')}`);
+                        core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
                     }
                 }
             }
