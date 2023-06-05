@@ -47,7 +47,7 @@ async function run(): Promise<void> {
     const filenames = await getPRFilenames(octokit)
 
     for (const requirement of config.requirements) {
-      const hasChanges = await hasChangedFilesMatchingPatterns(
+      const hasChanges = hasChangedFilesMatchingPatterns(
         requirement.patterns,
         filenames,
       )
