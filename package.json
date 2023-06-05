@@ -1,5 +1,5 @@
 {
-  "name": "required-approvals",
+  "name": "configurable-required-approvals",
   "version": "0.0.0",
   "private": true,
   "description": "Checks if a PR has the required number of approvals",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/weetbix/required-approvals.git"
+    "url": "git+https://github.com/weetbix/configurable-required-approvals.git"
   },
   "license": "MIT",
   "dependencies": {

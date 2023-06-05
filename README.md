@@ -1,4 +1,4 @@
-# Required Approvals GitHub Action
+# Configurable Required Approvals GitHub Action
 
 This GitHub Action checks if specific files in a pull request have the required number of approvals.
 It allows you to define groups of files using glob patterns and specify the minimum number of approvals required for each group.
@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Check required approvals
-        uses: weetbix/required-approvals@v1
+        uses: weetbix/configurable-required-approvals@v1
         with:
           requirements: |
             - patterns:

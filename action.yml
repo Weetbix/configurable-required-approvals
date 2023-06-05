@@ -1,4 +1,4 @@
-name: 'Required Approvals'
+name: 'Configurable Required Approvals'
 description: 'Checks that a PR has the required approvals for certain filepaths'
 author: 'John Hannagan'
 inputs:
