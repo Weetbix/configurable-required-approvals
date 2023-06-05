@@ -1,6 +1,100 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 2782:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.checkRequiredApprovals = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const github_1 = __nccwpck_require__(5438);
+const minimatch_1 = __nccwpck_require__(1953);
+// Maps all the filenames in the PR to an array of strings
+function getPRFilenames(octokit) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: files } = yield octokit.rest.pulls.listFiles({
+            owner: github_1.context.repo.owner,
+            repo: github_1.context.repo.repo,
+            pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
+        });
+        return files.map(file => file.filename);
+    });
+}
+// Returns true if any of the filenames match any of the patterns
+function hasChangedFilesMatchingPatterns(patterns, filenames) {
+    return patterns.some(pattern => minimatch_1.minimatch.match(filenames, pattern).length > 0);
+}
+// The main action function.
+// Checks if the required approvals are met for the patterns
+function checkRequiredApprovals(config) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        let actionFailed = false;
+        const octokit = (0, github_1.getOctokit)(config.token);
+        const filenames = yield getPRFilenames(octokit);
+        const { data: reviews } = yield octokit.rest.pulls.listReviews({
+            owner: github_1.context.repo.owner,
+            repo: github_1.context.repo.repo,
+            pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
+        });
+        for (const requirement of config.requirements) {
+            const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
+            if (hasChanges) {
+                const approvals = reviews.filter(review => review.state === 'APPROVED').length;
+                if (approvals < requirement.requiredApprovals) {
+                    actionFailed = true;
+                    core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
+                }
+            }
+        }
+        if (actionFailed) {
+            core.setFailed(`Required approvals not met for one or more patterns`);
+        }
+        else {
+            core.info('All checks passed!');
+        }
+    });
+}
+exports.checkRequiredApprovals = checkRequiredApprovals;
+
+
+/***/ }),
+
 /***/ 3109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -39,24 +133,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const yaml = __importStar(__nccwpck_require__(4083));
-const github_1 = __nccwpck_require__(5438);
-const minimatch_1 = __nccwpck_require__(1953);
-function getPRFilenames(octokit) {
-    var _a, _b;
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data: files } = yield octokit.rest.pulls.listFiles({
-            owner: github_1.context.repo.owner,
-            repo: github_1.context.repo.repo,
-            pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
-        });
-        return files.map(file => file.filename);
-    });
-}
-function hasChangedFilesMatchingPatterns(patterns, filenames) {
-    return patterns.some(pattern => minimatch_1.minimatch.match(filenames, pattern).length > 0);
-}
+const check_required_approvals_1 = __nccwpck_require__(2782);
 const parseRequirementsYaml = (requirements) => {
     const parsed = yaml.parse(requirements);
     if (!Array.isArray(parsed)) {
@@ -80,7 +160,6 @@ const parseRequirementsYaml = (requirements) => {
     });
 };
 function run() {
-    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const config = {
@@ -89,30 +168,7 @@ function run() {
                 })),
                 token: core.getInput('github-token', { required: true }),
             };
-            let actionFailed = false;
-            const octokit = (0, github_1.getOctokit)(config.token);
-            const filenames = yield getPRFilenames(octokit);
-            for (const requirement of config.requirements) {
-                const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
-                if (hasChanges) {
-                    const { data: reviews } = yield octokit.rest.pulls.listReviews({
-                        owner: github_1.context.repo.owner,
-                        repo: github_1.context.repo.repo,
-                        pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
-                    });
-                    const approvals = reviews.filter(review => review.state === 'APPROVED').length;
-                    if (approvals < requirement.requiredApprovals) {
-                        actionFailed = true;
-                        core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
-                    }
-                }
-            }
-            if (actionFailed) {
-                core.setFailed(`Required approvals not met for one or more patterns`);
-            }
-            else {
-                core.info('All checks passed!');
-            }
+            yield (0, check_required_approvals_1.checkRequiredApprovals)(config);
         }
         catch (error) {
             if (error instanceof Error) {
@@ -124,6 +180,7 @@ function run() {
         }
     });
 }
+exports.run = run;
 run();
 
 
