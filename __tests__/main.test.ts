@@ -1,31 +1,135 @@
-// import {wait} from '../src/wait'
-// import * as process from 'process'
-// import * as cp from 'child_process'
-// import * as path from 'path'
-// import {expect, test} from '@jest/globals'
+import {checkRequiredApprovals} from '../src/check-required-approvals'
+import * as core from '@actions/core'
 
-it('should pass', () => {})
+const listReviewsMock = jest.fn()
+const listFilesMock = jest.fn()
 
-// test('throws invalid number', async () => {
-//   const input = parseInt('foo', 10)
-//   await expect(wait(input)).rejects.toThrow('milliseconds not a number')
-// })
+jest.mock('@actions/core', () => ({
+  info: jest.fn(),
+  setFailed: jest.fn(),
+}))
 
-// test('wait 500 ms', async () => {
-//   const start = new Date()
-//   await wait(500)
-//   const end = new Date()
-//   var delta = Math.abs(end.getTime() - start.getTime())
-//   expect(delta).toBeGreaterThan(450)
-// })
+jest.mock('@actions/github', () => {
+  return {
+    context: {
+      repo: {
+        owner: 'mocked-owner-value',
+        repo: 'mocked-repo-value',
+      },
+      payload: {
+        pull_request: {
+          number: 99,
+        },
+      },
+    },
+    getOctokit: jest.fn(() => ({
+      rest: {
+        pulls: {
+          listReviews: listReviewsMock,
+          listFiles: listFilesMock,
+        },
+      },
+    })),
+  }
+})
 
-// // shows how the runner will run a javascript action with env / stdout protocol
-// test('test runs', () => {
-//   process.env['INPUT_MILLISECONDS'] = '500'
-//   const np = process.execPath
-//   const ip = path.join(__dirname, '..', 'lib', 'main.js')
-//   const options: cp.ExecFileSyncOptions = {
-//     env: process.env,
-//   }
-//   console.log(cp.execFileSync(np, [ip], options).toString())
-// })
+function mockFileList(filenames: string[]) {
+  listFilesMock.mockReturnValue({
+    data: filenames.map(filename => ({filename})),
+  })
+}
+
+function mockNumberOfReviews(number: number) {
+  listReviewsMock.mockReturnValue({
+    data: Array(number).fill({state: 'APPROVED'}),
+  })
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+})
+
+it('should pass when no files are matched, and the PR is not approved', async () => {
+  mockFileList(['foo', 'bar'])
+  mockNumberOfReviews(0)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['no-match'],
+        requiredApprovals: 1,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.setFailed).not.toBeCalled()
+  expect(core.info).toHaveBeenCalledWith('All checks passed!')
+})
+
+it('should pass when files are matched and approvals are met', async () => {
+  mockFileList(['src/test.js'])
+  mockNumberOfReviews(1)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['src/**/*'],
+        requiredApprovals: 1,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.setFailed).not.toBeCalled()
+  expect(core.info).toHaveBeenCalledWith('All checks passed!')
+})
+
+it('should pass when multiple patterns are met', async () => {
+  mockFileList(['src/test.js', '.github/workflows/test.yml'])
+  mockNumberOfReviews(2)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['src/**/*'],
+        requiredApprovals: 1,
+      },
+      {
+        patterns: ['.github/**/*'],
+        requiredApprovals: 2,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.setFailed).not.toBeCalled()
+  expect(core.info).toHaveBeenCalledWith('All checks passed!')
+})
+
+it('should fail if there is one requirement that is not met', async () => {
+  mockFileList(['src/test.js', '.github/workflows/test.yml'])
+  mockNumberOfReviews(1)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['src/**/*'],
+        requiredApprovals: 1,
+      },
+      {
+        patterns: ['.github/**/*'],
+        requiredApprovals: 2,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.setFailed).toHaveBeenCalledWith(
+    'Required approvals not met for one or more patterns',
+  )
+  expect(core.info).toHaveBeenCalledWith(
+    'Required approvals not met for files matching patterns (1/2): .github/**/*',
+  )
+  expect(core.info).not.toHaveBeenCalledWith('All checks passed!')
+})
