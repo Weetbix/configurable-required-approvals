@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Required Approvals'
+description: 'Checks that a PR has the required approvals for certain filepaths'
+author: 'John Hannagan'
 inputs:
   milliseconds: # change this
     required: true
