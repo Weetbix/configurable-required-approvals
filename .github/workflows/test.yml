@@ -20,9 +20,6 @@ jobs:
         with:
           requirements: |
             - patterns:
-                - "*.js"
-              requiredApprovals: 1
-            - patterns:
-                - ".github/**/*"
+                - "src/test/**/*"
               requiredApprovals: 1
           github-token: ${{ secrets.GITHUB_TOKEN }}
