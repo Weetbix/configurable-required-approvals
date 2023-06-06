@@ -19,9 +19,7 @@ name: Required Approvals
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
+  pull_request_review:
 
 jobs:
   required-approvals:
