@@ -6,12 +6,11 @@ on:
 jobs:
   approve:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Sleep for 30 seconds
         run: sleep 30
 
       - name: Approve Pull Request
-        uses: juliangruber/approve-pull-request-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          number: ${{ github.event.pull_request.number }}
+        uses: hmarr/auto-approve-action@v3
