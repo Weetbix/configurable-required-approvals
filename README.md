@@ -64,3 +64,4 @@ You would then make `required-approvals` a required check in the repository's br
 - If none of the files in the specified patterns are touched in the pull request, the action passes.
 - If files in the specified patterns are touched, the action checks if the pull request has the required number of approvals.
 - If the required number of approvals is not met, the action fails.
+- Always succeed on the `pull_request` event, so that you can set this check as `required` in branch protection.
