@@ -136,6 +136,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const yaml = __importStar(__nccwpck_require__(4083));
+const github_1 = __nccwpck_require__(5438);
 const check_required_approvals_1 = __nccwpck_require__(2782);
 const parseRequirementsYaml = (requirements) => {
     const parsed = yaml.parse(requirements);
@@ -168,7 +169,18 @@ function run() {
                 })),
                 token: core.getInput('github-token', { required: true }),
             };
-            yield (0, check_required_approvals_1.checkRequiredApprovals)(config);
+            const eventName = github_1.context.eventName;
+            if (eventName === 'pull_request') {
+                // Always succeed on pull_request events so that we can use this action
+                // as a required check for PRs.
+                core.setOutput('status', 'success');
+            }
+            else if (eventName === 'pull_request_review') {
+                yield (0, check_required_approvals_1.checkRequiredApprovals)(config);
+            }
+            else {
+                core.warning(`This action only supports 'pull_request', and 'pull_request_review' events. Received '${eventName}'.`);
+            }
         }
         catch (error) {
             if (error instanceof Error) {
