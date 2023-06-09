@@ -14,7 +14,7 @@ jobs:
           yarn all
 
   self-test:
-    name: Check required approvals
+    name: Check required approvals (self-test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
