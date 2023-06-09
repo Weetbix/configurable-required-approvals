@@ -1,5 +1,6 @@
 name: Build and test
 on:
+  pull_request:
   pull_request_review:
 
 jobs:
@@ -13,6 +14,7 @@ jobs:
           yarn all
 
   self-test:
+    name: Check required approvals
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
