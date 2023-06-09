@@ -11,7 +11,7 @@ jobs:
         run: sleep 30
 
       - name: Approve Pull Request
-        uses: juliangruber/approve-pull-request-action@v1.1.1
+        uses: juliangruber/approve-pull-request-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           number: ${{ github.event.pull_request.number }}
