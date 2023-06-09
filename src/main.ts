@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as yaml from 'yaml'
+import {context} from '@actions/github'
 import {
   checkRequiredApprovals,
   Requirement,
@@ -44,7 +45,18 @@ export async function run(): Promise<void> {
       token: core.getInput('github-token', {required: true}),
     }
 
-    await checkRequiredApprovals(config)
+    const eventName = context.eventName
+    if (eventName === 'pull_request') {
+      // Always succeed on pull_request events so that we can use this action
+      // as a required check for PRs.
+      core.setOutput('status', 'success')
+    } else if (eventName === 'pull_request_review') {
+      await checkRequiredApprovals(config)
+    } else {
+      core.warning(
+        `This action only supports 'pull_request', and 'pull_request_review' events. Received '${eventName}'.`,
+      )
+    }
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(`Action failed with error: ${error.message}`)
