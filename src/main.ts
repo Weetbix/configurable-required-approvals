@@ -46,11 +46,7 @@ export async function run(): Promise<void> {
     }
 
     const eventName = context.eventName
-    if (eventName === 'pull_request') {
-      // Always succeed on pull_request events so that we can use this action
-      // as a required check for PRs.
-      core.setOutput('status', 'success')
-    } else if (eventName === 'pull_request_review') {
+    if (eventName === 'pull_request' || eventName === 'pull_request_review') {
       await checkRequiredApprovals(config)
     } else {
       core.warning(
