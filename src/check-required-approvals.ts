@@ -48,6 +48,14 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     pull_number: context.payload.pull_request?.number ?? 0,
   })
 
+  // Always succeed on pull_request events when there are no reviews yet.
+  // That way we will not get red Xs on the PR right away.
+  if (context.eventName === 'pull_request' && reviews.length === 0) {
+    core.info('No reviews yet, skipping check.')
+    return
+  }
+
+  // Otherwise ensure all the checks are met
   for (const requirement of config.requirements) {
     const hasChanges = hasChangedFilesMatchingPatterns(
       requirement.patterns,

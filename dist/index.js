@@ -72,6 +72,13 @@ function checkRequiredApprovals(config) {
             repo: github_1.context.repo.repo,
             pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
         });
+        // Always succeed on pull_request events when there are no reviews yet.
+        // That way we will not get red Xs on the PR right away.
+        if (github_1.context.eventName === 'pull_request' && reviews.length === 0) {
+            core.info('No reviews yet, skipping check.');
+            return;
+        }
+        // Otherwise ensure all the checks are met
         for (const requirement of config.requirements) {
             const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
             if (hasChanges) {
@@ -170,12 +177,7 @@ function run() {
                 token: core.getInput('github-token', { required: true }),
             };
             const eventName = github_1.context.eventName;
-            if (eventName === 'pull_request') {
-                // Always succeed on pull_request events so that we can use this action
-                // as a required check for PRs.
-                core.setOutput('status', 'success');
-            }
-            else if (eventName === 'pull_request_review') {
+            if (eventName === 'pull_request' || eventName === 'pull_request_review') {
                 yield (0, check_required_approvals_1.checkRequiredApprovals)(config);
             }
             else {

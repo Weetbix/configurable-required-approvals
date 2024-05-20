@@ -12,6 +12,7 @@ jest.mock('@actions/core', () => ({
 jest.mock('@actions/github', () => {
   return {
     context: {
+      eventName: 'pull_request',
       repo: {
         owner: 'mocked-owner-value',
         repo: 'mocked-repo-value',
@@ -64,7 +65,7 @@ it('should pass when no files are matched, and the PR is not approved', async ()
   })
 
   expect(core.setFailed).not.toBeCalled()
-  expect(core.info).toHaveBeenCalledWith('All checks passed!')
+  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
 })
 
 it('should pass when files are matched and approvals are met', async () => {
@@ -132,4 +133,22 @@ it('should fail if there is one requirement that is not met', async () => {
     'Required approvals not met for files matching patterns (1/2): .github/**/*',
   )
   expect(core.info).not.toHaveBeenCalledWith('All checks passed!')
+})
+
+it('should pass if the event is pull_request and there are no reviews yet', async () => {
+  mockFileList(['src/test.js'])
+  mockNumberOfReviews(0)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['src/**/*'],
+        requiredApprovals: 1,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.setFailed).not.toBeCalled()
+  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
 })
