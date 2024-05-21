@@ -62,9 +62,9 @@ function hasChangedFilesMatchingPatterns(patterns, filenames) {
 // The main action function.
 // Checks if the required approvals are met for the patterns
 function checkRequiredApprovals(config) {
-    var _a, _b;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     return __awaiter(this, void 0, void 0, function* () {
-        let actionFailed = false;
+        let requiredApprovalsMet = true;
         const octokit = (0, github_1.getOctokit)(config.token);
         const filenames = yield getPRFilenames(octokit);
         const { data: reviews } = yield octokit.rest.pulls.listReviews({
@@ -72,28 +72,69 @@ function checkRequiredApprovals(config) {
             repo: github_1.context.repo.repo,
             pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
         });
-        // Always succeed on pull_request events when there are no reviews yet.
-        // That way we will not get red Xs on the PR right away.
-        if (github_1.context.eventName === 'pull_request' && reviews.length === 0) {
-            core.info('No reviews yet, skipping check.');
-            return;
-        }
+        const approvals = reviews.filter(review => review.state === 'APPROVED').length;
         // Otherwise ensure all the checks are met
         for (const requirement of config.requirements) {
             const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
             if (hasChanges) {
-                const approvals = reviews.filter(review => review.state === 'APPROVED').length;
                 if (approvals < requirement.requiredApprovals) {
-                    actionFailed = true;
+                    requiredApprovalsMet = false;
                     core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
                 }
             }
         }
-        if (actionFailed) {
-            core.setFailed(`Required approvals not met for one or more patterns`);
+        const noReviewsYet = github_1.context.eventName === 'pull_request' && reviews.length === 0;
+        const maxApprovalsRequired = Math.max(...config.requirements.map(req => req.requiredApprovals));
+        if (
+        // Always succeed on pull_request events when there are no reviews yet.
+        // That way we will not get red Xs on the PR right away.
+        requiredApprovalsMet ||
+            noReviewsYet) {
+            if (noReviewsYet) {
+                core.info('No reviews yet, setting check to successful.');
+            }
+            else {
+                core.info('All checks passed!');
+            }
+            yield octokit.rest.checks.create({
+                owner: github_1.context.repo.owner,
+                repo: github_1.context.repo.repo,
+                name: 'Required number of approvals met',
+                head_sha: (_e = (_d = (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head) === null || _d === void 0 ? void 0 : _d.sha) !== null && _e !== void 0 ? _e : github_1.context.sha,
+                status: 'completed',
+                conclusion: 'success',
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+                output: {
+                    title: `${approvals}/${maxApprovalsRequired} approvals`,
+                    summary: 'All required approvals have been met.',
+                },
+            });
         }
         else {
-            core.info('All checks passed!');
+            core.info(`Required approvals not met for one or more patterns.`);
+            // If the check already exists, update it so its pending and the
+            // PR cannot be merged. Otherwise leave the check missing.
+            const checks = yield octokit.rest.checks.listForRef({
+                owner: github_1.context.repo.owner,
+                repo: github_1.context.repo.repo,
+                ref: (_h = (_g = (_f = github_1.context.payload.pull_request) === null || _f === void 0 ? void 0 : _f.head) === null || _g === void 0 ? void 0 : _g.sha) !== null && _h !== void 0 ? _h : github_1.context.sha,
+            });
+            const requiredApprovalsCheck = checks.data.check_runs.find(check => check.name === 'Required number of approvals met');
+            if (requiredApprovalsCheck) {
+                core.info(`Setting existing check to in_progress`);
+                yield octokit.rest.checks.update({
+                    owner: github_1.context.repo.owner,
+                    repo: github_1.context.repo.repo,
+                    check_run_id: requiredApprovalsCheck.id,
+                    status: 'in_progress',
+                    started_at: new Date().toISOString(),
+                    output: {
+                        title: `${approvals}/${maxApprovalsRequired} approvals`,
+                        summary: `${maxApprovalsRequired} approvals are required, but only ${approvals} have been met.`,
+                    },
+                });
+            }
         }
     });
 }
