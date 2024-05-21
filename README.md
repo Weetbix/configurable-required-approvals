@@ -3,6 +3,8 @@
 This GitHub Action checks if specific files in a pull request have the required number of approvals.
 It allows you to define groups of files using glob patterns and specify the minimum number of approvals required for each group.
 
+test
+
 ## Why
 
 GitHub only lets you set the required number of approvals on a global level. In a monorepo, we may have sensitive projects which
