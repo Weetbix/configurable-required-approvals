@@ -1,4 +1,3 @@
-import exp from 'constants'
 import {checkRequiredApprovals} from '../src/check-required-approvals'
 import * as core from '@actions/core'
 
@@ -86,6 +85,9 @@ it('should "pass" and set the check when no files are matched, and the PR is not
   expect(createCheckMock).toBeCalledWith(
     expect.objectContaining({
       conclusion: 'success',
+      output: expect.objectContaining({
+        title: 'No reviews yet',
+      }),
     }),
   )
 })
@@ -110,6 +112,9 @@ it('should "pass" and set the check if the event is pull_request and there are n
   expect(createCheckMock).toBeCalledWith(
     expect.objectContaining({
       conclusion: 'success',
+      output: expect.objectContaining({
+        title: 'No reviews yet',
+      }),
     }),
   )
 })
@@ -132,6 +137,9 @@ it('should "pass" and set the check when files are matched and approvals are met
   expect(createCheckMock).toBeCalledWith(
     expect.objectContaining({
       conclusion: 'success',
+      output: expect.objectContaining({
+        title: '1/1 approvals',
+      }),
     }),
   )
 })
@@ -158,6 +166,9 @@ it('should "pass" and set the check when multiple patterns are met', async () =>
   expect(createCheckMock).toBeCalledWith(
     expect.objectContaining({
       conclusion: 'success',
+      output: expect.objectContaining({
+        title: '2/2 approvals',
+      }),
     }),
   )
 })
