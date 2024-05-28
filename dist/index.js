@@ -74,9 +74,11 @@ function checkRequiredApprovals(config) {
         });
         const approvals = reviews.filter(review => review.state === 'APPROVED').length;
         // Otherwise ensure all the checks are met
+        let maxApprovalsRequired = 1;
         for (const requirement of config.requirements) {
             const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
             if (hasChanges) {
+                maxApprovalsRequired = Math.max(maxApprovalsRequired, requirement.requiredApprovals);
                 if (approvals < requirement.requiredApprovals) {
                     requiredApprovalsMet = false;
                     core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
@@ -84,7 +86,9 @@ function checkRequiredApprovals(config) {
             }
         }
         const noReviewsYet = github_1.context.eventName === 'pull_request' && reviews.length === 0;
-        const maxApprovalsRequired = Math.max(...config.requirements.map(req => req.requiredApprovals));
+        const checkTitle = noReviewsYet
+            ? 'No reviews yet'
+            : `${approvals}/${maxApprovalsRequired} approvals`;
         if (
         // Always succeed on pull_request events when there are no reviews yet.
         // That way we will not get red Xs on the PR right away.
@@ -106,7 +110,7 @@ function checkRequiredApprovals(config) {
                 started_at: new Date().toISOString(),
                 completed_at: new Date().toISOString(),
                 output: {
-                    title: `${approvals}/${maxApprovalsRequired} approvals`,
+                    title: checkTitle,
                     summary: 'All required approvals have been met.',
                 },
             });
@@ -130,7 +134,7 @@ function checkRequiredApprovals(config) {
                     status: 'in_progress',
                     started_at: new Date().toISOString(),
                     output: {
-                        title: `${approvals}/${maxApprovalsRequired} approvals`,
+                        title: checkTitle,
                         summary: `${maxApprovalsRequired} approvals are required, but only ${approvals} have been met.`,
                     },
                 });

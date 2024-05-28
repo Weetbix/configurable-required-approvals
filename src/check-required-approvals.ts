@@ -51,6 +51,7 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
   const approvals = reviews.filter(review => review.state === 'APPROVED').length
 
   // Otherwise ensure all the checks are met
+  let maxApprovalsRequired = 1
   for (const requirement of config.requirements) {
     const hasChanges = hasChangedFilesMatchingPatterns(
       requirement.patterns,
@@ -58,6 +59,11 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     )
 
     if (hasChanges) {
+      maxApprovalsRequired = Math.max(
+        maxApprovalsRequired,
+        requirement.requiredApprovals,
+      )
+
       if (approvals < requirement.requiredApprovals) {
         requiredApprovalsMet = false
         core.info(
@@ -71,9 +77,10 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
 
   const noReviewsYet =
     context.eventName === 'pull_request' && reviews.length === 0
-  const maxApprovalsRequired = Math.max(
-    ...config.requirements.map(req => req.requiredApprovals),
-  )
+
+  const checkTitle = noReviewsYet
+    ? 'No reviews yet'
+    : `${approvals}/${maxApprovalsRequired} approvals`
 
   if (
     // Always succeed on pull_request events when there are no reviews yet.
@@ -97,7 +104,7 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       started_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
       output: {
-        title: `${approvals}/${maxApprovalsRequired} approvals`,
+        title: checkTitle,
         summary: 'All required approvals have been met.',
       },
     })
@@ -126,7 +133,7 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
         status: 'in_progress',
         started_at: new Date().toISOString(),
         output: {
-          title: `${approvals}/${maxApprovalsRequired} approvals`,
+          title: checkTitle,
           summary: `${maxApprovalsRequired} approvals are required, but only ${approvals} have been met.`,
         },
       })
