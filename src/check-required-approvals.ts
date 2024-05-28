@@ -38,7 +38,7 @@ function hasChangedFilesMatchingPatterns(
 // The main action function.
 // Checks if the required approvals are met for the patterns
 export async function checkRequiredApprovals(config: Config): Promise<void> {
-  let actionFailed = false
+  let requiredApprovalsMet = true
   const octokit = getOctokit(config.token)
   const filenames = await getPRFilenames(octokit)
 
@@ -48,12 +48,7 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     pull_number: context.payload.pull_request?.number ?? 0,
   })
 
-  // Always succeed on pull_request events when there are no reviews yet.
-  // That way we will not get red Xs on the PR right away.
-  if (context.eventName === 'pull_request' && reviews.length === 0) {
-    core.info('No reviews yet, skipping check.')
-    return
-  }
+  const approvals = reviews.filter(review => review.state === 'APPROVED').length
 
   // Otherwise ensure all the checks are met
   for (const requirement of config.requirements) {
@@ -63,12 +58,8 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     )
 
     if (hasChanges) {
-      const approvals = reviews.filter(
-        review => review.state === 'APPROVED',
-      ).length
-
       if (approvals < requirement.requiredApprovals) {
-        actionFailed = true
+        requiredApprovalsMet = false
         core.info(
           `Required approvals not met for files matching patterns (${approvals}/${
             requirement.requiredApprovals
@@ -78,9 +69,67 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     }
   }
 
-  if (actionFailed) {
-    core.setFailed(`Required approvals not met for one or more patterns`)
+  const noReviewsYet =
+    context.eventName === 'pull_request' && reviews.length === 0
+  const maxApprovalsRequired = Math.max(
+    ...config.requirements.map(req => req.requiredApprovals),
+  )
+
+  if (
+    // Always succeed on pull_request events when there are no reviews yet.
+    // That way we will not get red Xs on the PR right away.
+    requiredApprovalsMet ||
+    noReviewsYet
+  ) {
+    if (noReviewsYet) {
+      core.info('No reviews yet, setting check to successful.')
+    } else {
+      core.info('All checks passed!')
+    }
+
+    await octokit.rest.checks.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      name: 'Required number of approvals met',
+      head_sha: context.payload.pull_request?.head?.sha ?? context.sha,
+      status: 'completed',
+      conclusion: 'success',
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      output: {
+        title: `${approvals}/${maxApprovalsRequired} approvals`,
+        summary: 'All required approvals have been met.',
+      },
+    })
   } else {
-    core.info('All checks passed!')
+    core.info(`Required approvals not met for one or more patterns.`)
+
+    // If the check already exists, update it so its pending and the
+    // PR cannot be merged. Otherwise leave the check missing.
+    const checks = await octokit.rest.checks.listForRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: context.payload.pull_request?.head?.sha ?? context.sha,
+    })
+
+    const requiredApprovalsCheck = checks.data.check_runs.find(
+      check => check.name === 'Required number of approvals met',
+    )
+
+    if (requiredApprovalsCheck) {
+      core.info(`Setting existing check to in_progress`)
+
+      await octokit.rest.checks.update({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        check_run_id: requiredApprovalsCheck.id,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        output: {
+          title: `${approvals}/${maxApprovalsRequired} approvals`,
+          summary: `${maxApprovalsRequired} approvals are required, but only ${approvals} have been met.`,
+        },
+      })
+    }
   }
 }

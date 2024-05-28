@@ -1,12 +1,15 @@
+import exp from 'constants'
 import {checkRequiredApprovals} from '../src/check-required-approvals'
 import * as core from '@actions/core'
 
 const listReviewsMock = jest.fn()
 const listFilesMock = jest.fn()
+const createCheckMock = jest.fn()
+const updateCheckMock = jest.fn()
+const listForRefMock = jest.fn()
 
 jest.mock('@actions/core', () => ({
   info: jest.fn(),
-  setFailed: jest.fn(),
 }))
 
 jest.mock('@actions/github', () => {
@@ -29,6 +32,11 @@ jest.mock('@actions/github', () => {
           listReviews: listReviewsMock,
           listFiles: listFilesMock,
         },
+        checks: {
+          create: createCheckMock,
+          update: updateCheckMock,
+          listForRef: listForRefMock,
+        },
       },
     })),
   }
@@ -46,11 +54,19 @@ function mockNumberOfReviews(number: number) {
   })
 }
 
+function mockCheckAlreadyExisting(alreadyExists: boolean) {
+  listForRefMock.mockReturnValue({
+    data: alreadyExists
+      ? {check_runs: [{name: 'Required number of approvals met'}]}
+      : {check_runs: []},
+  })
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
 })
 
-it('should pass when no files are matched, and the PR is not approved', async () => {
+it('should "pass" and set the check when no files are matched, and the PR is not approved', async () => {
   mockFileList(['foo', 'bar'])
   mockNumberOfReviews(0)
 
@@ -64,11 +80,41 @@ it('should pass when no files are matched, and the PR is not approved', async ()
     token: 'foo',
   })
 
-  expect(core.setFailed).not.toBeCalled()
-  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
+  expect(core.info).toHaveBeenCalledWith(
+    'No reviews yet, setting check to successful.',
+  )
+  expect(createCheckMock).toBeCalledWith(
+    expect.objectContaining({
+      conclusion: 'success',
+    }),
+  )
 })
 
-it('should pass when files are matched and approvals are met', async () => {
+it('should "pass" and set the check if the event is pull_request and there are no reviews yet, even with matching files', async () => {
+  mockFileList(['src/test.js'])
+  mockNumberOfReviews(0)
+
+  await checkRequiredApprovals({
+    requirements: [
+      {
+        patterns: ['src/**/*'],
+        requiredApprovals: 1,
+      },
+    ],
+    token: 'foo',
+  })
+
+  expect(core.info).toHaveBeenCalledWith(
+    'No reviews yet, setting check to successful.',
+  )
+  expect(createCheckMock).toBeCalledWith(
+    expect.objectContaining({
+      conclusion: 'success',
+    }),
+  )
+})
+
+it('should "pass" and set the check when files are matched and approvals are met', async () => {
   mockFileList(['src/test.js'])
   mockNumberOfReviews(1)
 
@@ -82,11 +128,15 @@ it('should pass when files are matched and approvals are met', async () => {
     token: 'foo',
   })
 
-  expect(core.setFailed).not.toBeCalled()
   expect(core.info).toHaveBeenCalledWith('All checks passed!')
+  expect(createCheckMock).toBeCalledWith(
+    expect.objectContaining({
+      conclusion: 'success',
+    }),
+  )
 })
 
-it('should pass when multiple patterns are met', async () => {
+it('should "pass" and set the check when multiple patterns are met', async () => {
   mockFileList(['src/test.js', '.github/workflows/test.yml'])
   mockNumberOfReviews(2)
 
@@ -104,12 +154,17 @@ it('should pass when multiple patterns are met', async () => {
     token: 'foo',
   })
 
-  expect(core.setFailed).not.toBeCalled()
   expect(core.info).toHaveBeenCalledWith('All checks passed!')
+  expect(createCheckMock).toBeCalledWith(
+    expect.objectContaining({
+      conclusion: 'success',
+    }),
+  )
 })
 
-it('should fail if there is one requirement that is not met', async () => {
+it('should "fail" and not set the check, if there is one requirement that is not met', async () => {
   mockFileList(['src/test.js', '.github/workflows/test.yml'])
+  mockCheckAlreadyExisting(false)
   mockNumberOfReviews(1)
 
   await checkRequiredApprovals({
@@ -126,29 +181,35 @@ it('should fail if there is one requirement that is not met', async () => {
     token: 'foo',
   })
 
-  expect(core.setFailed).toHaveBeenCalledWith(
-    'Required approvals not met for one or more patterns',
-  )
   expect(core.info).toHaveBeenCalledWith(
     'Required approvals not met for files matching patterns (1/2): .github/**/*',
   )
   expect(core.info).not.toHaveBeenCalledWith('All checks passed!')
+  expect(createCheckMock).not.toBeCalled()
+  expect(updateCheckMock).not.toBeCalled()
 })
 
-it('should pass if the event is pull_request and there are no reviews yet', async () => {
+it('should "fail" and update the check to in progress when failing, if it already exists', async () => {
   mockFileList(['src/test.js'])
-  mockNumberOfReviews(0)
+  mockCheckAlreadyExisting(true)
+  mockNumberOfReviews(1)
 
   await checkRequiredApprovals({
     requirements: [
       {
         patterns: ['src/**/*'],
-        requiredApprovals: 1,
+        requiredApprovals: 2,
       },
     ],
     token: 'foo',
   })
 
-  expect(core.setFailed).not.toBeCalled()
-  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
+  expect(updateCheckMock).toBeCalled()
+  expect(core.info).toHaveBeenCalledWith(
+    'Setting existing check to in_progress',
+  )
+  expect(core.info).toHaveBeenCalledWith(
+    'Required approvals not met for files matching patterns (1/2): src/**/*',
+  )
+  expect(createCheckMock).not.toBeCalled()
 })

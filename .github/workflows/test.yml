@@ -3,6 +3,10 @@ on:
   pull_request:
   pull_request_review:
 
+permissions:
+  checks: write
+  pull-requests: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
