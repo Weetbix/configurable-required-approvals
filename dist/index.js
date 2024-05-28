@@ -74,7 +74,7 @@ function checkRequiredApprovals(config) {
         });
         const approvals = reviews.filter(review => review.state === 'APPROVED').length;
         // Otherwise ensure all the checks are met
-        let maxApprovalsRequired = 1;
+        let maxApprovalsRequired = 0;
         for (const requirement of config.requirements) {
             const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
             if (hasChanges) {
