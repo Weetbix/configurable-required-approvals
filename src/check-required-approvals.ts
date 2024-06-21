@@ -130,7 +130,7 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
         owner: context.repo.owner,
         repo: context.repo.repo,
         check_run_id: requiredApprovalsCheck.id,
-        status: 'in_progress',
+        status: 'pending',
         started_at: new Date().toISOString(),
         output: {
           title: checkTitle,
