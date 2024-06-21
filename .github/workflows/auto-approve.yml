@@ -10,7 +10,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Sleep for 30 seconds
-        run: sleep 30
+        run: sleep 120
 
       - name: Approve Pull Request
         uses: hmarr/auto-approve-action@v3
