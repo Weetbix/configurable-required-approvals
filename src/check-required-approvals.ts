@@ -55,6 +55,35 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     return
   }
 
+  // If the event is a pull_request_review, we should re-run the
+  // push check, so that it updates its status.
+  if (context.eventName === 'pull_request_review') {
+    core.info('Pull request review event, re-running push check.')
+
+    core.info(
+      JSON.stringify(
+        {
+          ref: context.payload.pull_request?.head.sha,
+        },
+        null,
+        2,
+      ),
+    )
+
+    const checksForThisCommit = await octokit.rest.checks.listForRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: context.payload.pull_request?.head.sha,
+    })
+
+    core.info(JSON.stringify(checksForThisCommit, null, 2))
+
+    const currentCheck = context.job
+    core.info(JSON.stringify({currentCheck}, null, 2))
+
+    return
+  }
+
   // Otherwise ensure all the checks are met
   for (const requirement of config.requirements) {
     const hasChanges = hasChangedFilesMatchingPatterns(

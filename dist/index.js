@@ -62,7 +62,7 @@ function hasChangedFilesMatchingPatterns(patterns, filenames) {
 // The main action function.
 // Checks if the required approvals are met for the patterns
 function checkRequiredApprovals(config) {
-    var _a, _b;
+    var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         let actionFailed = false;
         const octokit = (0, github_1.getOctokit)(config.token);
@@ -76,6 +76,23 @@ function checkRequiredApprovals(config) {
         // That way we will not get red Xs on the PR right away.
         if (github_1.context.eventName === 'pull_request' && reviews.length === 0) {
             core.info('No reviews yet, skipping check.');
+            return;
+        }
+        // If the event is a pull_request_review, we should re-run the
+        // push check, so that it updates its status.
+        if (github_1.context.eventName === 'pull_request_review') {
+            core.info('Pull request review event, re-running push check.');
+            core.info(JSON.stringify({
+                ref: (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha,
+            }, null, 2));
+            const checksForThisCommit = yield octokit.rest.checks.listForRef({
+                owner: github_1.context.repo.owner,
+                repo: github_1.context.repo.repo,
+                ref: (_d = github_1.context.payload.pull_request) === null || _d === void 0 ? void 0 : _d.head.sha,
+            });
+            core.info(JSON.stringify(checksForThisCommit, null, 2));
+            const currentCheck = github_1.context.job;
+            core.info(JSON.stringify({ currentCheck }, null, 2));
             return;
         }
         // Otherwise ensure all the checks are met
