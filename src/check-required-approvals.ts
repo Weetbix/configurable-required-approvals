@@ -55,6 +55,55 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     return
   }
 
+  // If the event is a pull_request_review, we should re-run the
+  // push check, so that it updates its status.
+  if (context.eventName === 'pull_request_review') {
+    // We need to:
+    // - Find the check runs for this commit
+    // - Find the workflow runs associated with the check runs
+    // - Use the workflow run to determine if the check was part of a pull_request event
+    // - Rerun the job associated with the check run
+    // There doesn't seem to be an easier way to get this info.
+    core.info('Pull request review event, re-running push check.')
+
+    const checksForThisCommit = await octokit.rest.checks.listForRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: context.payload.pull_request?.head.sha,
+    })
+
+    const approvalChecks = checksForThisCommit.data.check_runs.filter(
+      check =>
+        check.name === 'Check required approvals' &&
+        check.status === 'completed',
+    )
+
+    for (const approvalCheck of approvalChecks) {
+      const runId = approvalCheck.html_url?.match(/\/runs\/(\d+)\//)?.[1]
+      if (runId) {
+        const workflowRun = await octokit.rest.actions.getWorkflowRun({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          run_id: parseInt(runId),
+        })
+
+        if (workflowRun.data.event === 'pull_request') {
+          const jobId = approvalCheck?.html_url?.match(/\/job\/(\d+)/)?.[1]
+          if (jobId) {
+            // rerun the workflow job
+            core.info(`Re-running pull_request job ${jobId} to update status`)
+            await octokit.rest.actions.reRunJobForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              job_id: parseInt(jobId),
+            })
+          }
+          break
+        }
+      }
+    }
+  }
+
   // Otherwise ensure all the checks are met
   for (const requirement of config.requirements) {
     const hasChanges = hasChangedFilesMatchingPatterns(
@@ -70,9 +119,14 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       if (approvals < requirement.requiredApprovals) {
         actionFailed = true
         core.info(
-          `Required approvals not met for files matching patterns (${approvals}/${
+          `Expected ${requirement.requiredApprovals} approvals, but the PR only has ${approvals}.`,
+        )
+        core.info(
+          `PR requires ${
             requirement.requiredApprovals
-          }): ${requirement.patterns.join(', ')}`,
+          } due to the following files matching patterns: ${requirement.patterns.join(
+            ', \n',
+          )}`,
         )
       }
     }

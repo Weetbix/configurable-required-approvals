@@ -130,7 +130,10 @@ it('should fail if there is one requirement that is not met', async () => {
     'Required approvals not met for one or more patterns',
   )
   expect(core.info).toHaveBeenCalledWith(
-    'Required approvals not met for files matching patterns (1/2): .github/**/*',
+    'Expected 2 approvals, but the PR only has 1.',
+  )
+  expect(core.info).toHaveBeenCalledWith(
+    'PR requires 2 due to the following files matching patterns: .github/**/*',
   )
   expect(core.info).not.toHaveBeenCalledWith('All checks passed!')
 })

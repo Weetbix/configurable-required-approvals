@@ -62,7 +62,7 @@ function hasChangedFilesMatchingPatterns(patterns, filenames) {
 // The main action function.
 // Checks if the required approvals are met for the patterns
 function checkRequiredApprovals(config) {
-    var _a, _b;
+    var _a, _b, _c, _d, _e, _f, _g;
     return __awaiter(this, void 0, void 0, function* () {
         let actionFailed = false;
         const octokit = (0, github_1.getOctokit)(config.token);
@@ -78,6 +78,47 @@ function checkRequiredApprovals(config) {
             core.info('No reviews yet, skipping check.');
             return;
         }
+        // If the event is a pull_request_review, we should re-run the
+        // push check, so that it updates its status.
+        if (github_1.context.eventName === 'pull_request_review') {
+            // We need to:
+            // - Find the check runs for this commit
+            // - Find the workflow runs associated with the check runs
+            // - Use the workflow run to determine if the check was part of a pull_request event
+            // - Rerun the job associated with the check run
+            // There doesn't seem to be an easier way to get this info.
+            core.info('Pull request review event, re-running push check.');
+            const checksForThisCommit = yield octokit.rest.checks.listForRef({
+                owner: github_1.context.repo.owner,
+                repo: github_1.context.repo.repo,
+                ref: (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha,
+            });
+            const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === 'Check required approvals' &&
+                check.status === 'completed');
+            for (const approvalCheck of approvalChecks) {
+                const runId = (_e = (_d = approvalCheck.html_url) === null || _d === void 0 ? void 0 : _d.match(/\/runs\/(\d+)\//)) === null || _e === void 0 ? void 0 : _e[1];
+                if (runId) {
+                    const workflowRun = yield octokit.rest.actions.getWorkflowRun({
+                        owner: github_1.context.repo.owner,
+                        repo: github_1.context.repo.repo,
+                        run_id: parseInt(runId),
+                    });
+                    if (workflowRun.data.event === 'pull_request') {
+                        const jobId = (_g = (_f = approvalCheck === null || approvalCheck === void 0 ? void 0 : approvalCheck.html_url) === null || _f === void 0 ? void 0 : _f.match(/\/job\/(\d+)/)) === null || _g === void 0 ? void 0 : _g[1];
+                        if (jobId) {
+                            // rerun the workflow job
+                            core.info(`Re-running pull_request job ${jobId} to update status`);
+                            yield octokit.rest.actions.reRunJobForWorkflowRun({
+                                owner: github_1.context.repo.owner,
+                                repo: github_1.context.repo.repo,
+                                job_id: parseInt(jobId),
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+        }
         // Otherwise ensure all the checks are met
         for (const requirement of config.requirements) {
             const hasChanges = hasChangedFilesMatchingPatterns(requirement.patterns, filenames);
@@ -85,7 +126,8 @@ function checkRequiredApprovals(config) {
                 const approvals = reviews.filter(review => review.state === 'APPROVED').length;
                 if (approvals < requirement.requiredApprovals) {
                     actionFailed = true;
-                    core.info(`Required approvals not met for files matching patterns (${approvals}/${requirement.requiredApprovals}): ${requirement.patterns.join(', ')}`);
+                    core.info(`Expected ${requirement.requiredApprovals} approvals, but the PR only has ${approvals}.`);
+                    core.info(`PR requires ${requirement.requiredApprovals} due to the following files matching patterns: ${requirement.patterns.join(', \n')}`);
                 }
             }
         }
