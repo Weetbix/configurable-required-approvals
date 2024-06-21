@@ -1,20 +1,10 @@
-name: Build and test
+name: Self test
 on:
   pull_request:
   pull_request_review:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: |
-          yarn
-      - run: |
-          yarn all
-
   self-test:
-    name: Check required approvals
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
