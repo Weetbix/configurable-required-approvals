@@ -58,6 +58,13 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
   // If the event is a pull_request_review, we should re-run the
   // push check, so that it updates its status.
   if (context.eventName === 'pull_request_review') {
+    core.info(
+      JSON.stringify({
+        jobID: context,
+        env: process.env,
+      }),
+    )
+
     // We need to:
     // - Find the check runs for this commit
     // - Find the workflow runs associated with the check runs
@@ -71,6 +78,8 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       repo: context.repo.repo,
       ref: context.payload.pull_request?.head.sha,
     })
+
+    core.info(JSON.stringify(checksForThisCommit))
 
     const approvalChecks = checksForThisCommit.data.check_runs.filter(
       check =>

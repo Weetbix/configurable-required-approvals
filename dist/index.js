@@ -81,6 +81,10 @@ function checkRequiredApprovals(config) {
         // If the event is a pull_request_review, we should re-run the
         // push check, so that it updates its status.
         if (github_1.context.eventName === 'pull_request_review') {
+            core.info(JSON.stringify({
+                jobID: github_1.context,
+                env: process.env,
+            }));
             // We need to:
             // - Find the check runs for this commit
             // - Find the workflow runs associated with the check runs
@@ -93,6 +97,7 @@ function checkRequiredApprovals(config) {
                 repo: github_1.context.repo.repo,
                 ref: (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha,
             });
+            core.info(JSON.stringify(checksForThisCommit));
             const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === 'Check required approvals' &&
                 check.status === 'completed');
             for (const approvalCheck of approvalChecks) {
