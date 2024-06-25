@@ -1,9 +1,9 @@
 name: Self test
 
 permissions:
-  pull-requests: write
-  checks: write
-
+  actions: write
+  pull-requests: read
+  checks: read
 
 on:
   pull_request:
