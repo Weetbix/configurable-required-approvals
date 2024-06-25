@@ -99,23 +99,17 @@ function checkRequiredApprovals(config) {
                 status: 'completed',
                 per_page: 100,
             });
-            core.info(JSON.stringify({ checksForThisCommit }, null, 2));
-            core.info(`GITHUB_JOB is ${process.env.GITHUB_JOB}`);
             const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === process.env.GITHUB_JOB);
-            core.info(JSON.stringify({ approvalChecks }, null, 2));
             for (const approvalCheck of approvalChecks) {
                 const runId = (_f = (_e = approvalCheck.html_url) === null || _e === void 0 ? void 0 : _e.match(/\/runs\/(\d+)\//)) === null || _f === void 0 ? void 0 : _f[1];
-                core.info(JSON.stringify({ approvalCheck: approvalCheck.id, runId }, null, 2));
                 if (runId) {
                     const workflowRun = yield octokit.rest.actions.getWorkflowRun({
                         owner: github_1.context.repo.owner,
                         repo: github_1.context.repo.repo,
                         run_id: parseInt(runId),
                     });
-                    core.info(JSON.stringify({ workflowRun }, null, 2));
                     if (workflowRun.data.event === 'pull_request') {
                         const jobId = (_h = (_g = approvalCheck === null || approvalCheck === void 0 ? void 0 : approvalCheck.html_url) === null || _g === void 0 ? void 0 : _g.match(/\/job\/(\d+)/)) === null || _h === void 0 ? void 0 : _h[1];
-                        core.info(JSON.stringify({ jobId }, null, 2));
                         if (jobId) {
                             // rerun the workflow job
                             core.info(`Re-running pull_request job ${jobId} to update status`);
@@ -125,17 +119,8 @@ function checkRequiredApprovals(config) {
                                 job_id: parseInt(jobId),
                             });
                         }
-                        else {
-                            core.info('Could not find a jobId for the check run');
-                        }
                         break;
                     }
-                    else {
-                        core.info(`Workflow run ${workflowRun.data.id} is not a pull_request event, skipping.`);
-                    }
-                }
-                else {
-                    core.info('Could not find a run_id for the check run');
                 }
             }
         }
