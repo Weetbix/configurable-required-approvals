@@ -65,7 +65,10 @@ it('should pass when no files are matched, and the PR is not approved', async ()
   })
 
   expect(core.setFailed).not.toBeCalled()
-  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
+  expect(core.info).toHaveBeenCalledWith('Found 0 reviews.')
+  expect(core.info).toHaveBeenCalledWith(
+    'No reviews yet, skipping check so the PR gets a green tick.',
+  )
 })
 
 it('should pass when files are matched and approvals are met', async () => {
@@ -130,7 +133,10 @@ it('should fail if there is one requirement that is not met', async () => {
     'Required approvals not met for one or more patterns',
   )
   expect(core.info).toHaveBeenCalledWith(
-    'Required approvals not met for files matching patterns (1/2): .github/**/*',
+    'Expected 2 approvals, but the PR only has 1.',
+  )
+  expect(core.info).toHaveBeenCalledWith(
+    'PR requires 2 due to the following files matching patterns: .github/**/*',
   )
   expect(core.info).not.toHaveBeenCalledWith('All checks passed!')
 })
@@ -150,5 +156,8 @@ it('should pass if the event is pull_request and there are no reviews yet', asyn
   })
 
   expect(core.setFailed).not.toBeCalled()
-  expect(core.info).toHaveBeenCalledWith('No reviews yet, skipping check.')
+  expect(core.info).toHaveBeenCalledWith('Found 0 reviews.')
+  expect(core.info).toHaveBeenCalledWith(
+    'No reviews yet, skipping check so the PR gets a green tick.',
+  )
 })
