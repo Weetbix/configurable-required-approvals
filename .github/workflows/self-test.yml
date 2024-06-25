@@ -1,7 +1,7 @@
 name: Self test
 
 permissions:
-  pull-requests: read
+  pull-requests: write
   checks: write
 
 
