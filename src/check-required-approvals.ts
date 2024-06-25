@@ -76,23 +76,32 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       repo: context.repo.repo,
       ref: context.payload.pull_request?.head.sha,
     })
+    core.info(JSON.stringify({checksForThisCommit}, null, 2))
 
+    core.info(`GITHUB_JOB is ${process.env.GITHUB_JOB}`)
     const approvalChecks = checksForThisCommit.data.check_runs.filter(
       check =>
         check.name === process.env.GITHUB_JOB && check.status === 'completed',
     )
+    core.info(JSON.stringify({approvalChecks}, null, 2))
 
     for (const approvalCheck of approvalChecks) {
       const runId = approvalCheck.html_url?.match(/\/runs\/(\d+)\//)?.[1]
+      core.info(
+        JSON.stringify({approvalCheck: approvalCheck.id, runId}, null, 2),
+      )
+
       if (runId) {
         const workflowRun = await octokit.rest.actions.getWorkflowRun({
           owner: context.repo.owner,
           repo: context.repo.repo,
           run_id: parseInt(runId),
         })
+        core.info(JSON.stringify({workflowRun}, null, 2))
 
         if (workflowRun.data.event === 'pull_request') {
           const jobId = approvalCheck?.html_url?.match(/\/job\/(\d+)/)?.[1]
+          core.info(JSON.stringify({jobId}, null, 2))
           if (jobId) {
             // rerun the workflow job
             core.info(`Re-running pull_request job ${jobId} to update status`)
@@ -101,9 +110,17 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
               repo: context.repo.repo,
               job_id: parseInt(jobId),
             })
+          } else {
+            core.info('Could not find a jobId for the check run')
           }
           break
+        } else {
+          core.info(
+            `Workflow run ${workflowRun.data.id} is not a pull_request event, skipping.`,
+          )
         }
+      } else {
+        core.info('Could not find a run_id for the check run')
       }
     }
   }
