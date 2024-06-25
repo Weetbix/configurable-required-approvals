@@ -96,10 +96,12 @@ function checkRequiredApprovals(config) {
                 owner: github_1.context.repo.owner,
                 repo: github_1.context.repo.repo,
                 ref: (_d = github_1.context.payload.pull_request) === null || _d === void 0 ? void 0 : _d.head.sha,
+                status: 'completed',
+                per_page: 100,
             });
             core.info(JSON.stringify({ checksForThisCommit }, null, 2));
             core.info(`GITHUB_JOB is ${process.env.GITHUB_JOB}`);
-            const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === process.env.GITHUB_JOB && check.status === 'completed');
+            const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === process.env.GITHUB_JOB);
             core.info(JSON.stringify({ approvalChecks }, null, 2));
             for (const approvalCheck of approvalChecks) {
                 const runId = (_f = (_e = approvalCheck.html_url) === null || _e === void 0 ? void 0 : _e.match(/\/runs\/(\d+)\//)) === null || _f === void 0 ? void 0 : _f[1];

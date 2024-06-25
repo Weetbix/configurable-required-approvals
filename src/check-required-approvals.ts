@@ -75,13 +75,14 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       owner: context.repo.owner,
       repo: context.repo.repo,
       ref: context.payload.pull_request?.head.sha,
+      status: 'completed',
+      per_page: 100,
     })
     core.info(JSON.stringify({checksForThisCommit}, null, 2))
 
     core.info(`GITHUB_JOB is ${process.env.GITHUB_JOB}`)
     const approvalChecks = checksForThisCommit.data.check_runs.filter(
-      check =>
-        check.name === process.env.GITHUB_JOB && check.status === 'completed',
+      check => check.name === process.env.GITHUB_JOB,
     )
     core.info(JSON.stringify({approvalChecks}, null, 2))
 
