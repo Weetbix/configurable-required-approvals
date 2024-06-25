@@ -62,7 +62,7 @@ function hasChangedFilesMatchingPatterns(patterns, filenames) {
 // The main action function.
 // Checks if the required approvals are met for the patterns
 function checkRequiredApprovals(config) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     return __awaiter(this, void 0, void 0, function* () {
         let actionFailed = false;
         const octokit = (0, github_1.getOctokit)(config.token);
@@ -72,19 +72,19 @@ function checkRequiredApprovals(config) {
             repo: github_1.context.repo.repo,
             pull_number: (_b = (_a = github_1.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number) !== null && _b !== void 0 ? _b : 0,
         });
+        core.info(`Found ${reviews.length} reviews.`);
+        for (const review of reviews) {
+            core.info(`- ${(_c = review === null || review === void 0 ? void 0 : review.user) === null || _c === void 0 ? void 0 : _c.login}: (${review.state})`);
+        }
         // Always succeed on pull_request events when there are no reviews yet.
         // That way we will not get red Xs on the PR right away.
         if (github_1.context.eventName === 'pull_request' && reviews.length === 0) {
-            core.info('No reviews yet, skipping check.');
+            core.info('No reviews yet, skipping check so the PR gets a green tick.');
             return;
         }
         // If the event is a pull_request_review, we should re-run the
         // push check, so that it updates its status.
         if (github_1.context.eventName === 'pull_request_review') {
-            core.info(JSON.stringify({
-                jobID: github_1.context,
-                env: process.env,
-            }));
             // We need to:
             // - Find the check runs for this commit
             // - Find the workflow runs associated with the check runs
@@ -95,13 +95,11 @@ function checkRequiredApprovals(config) {
             const checksForThisCommit = yield octokit.rest.checks.listForRef({
                 owner: github_1.context.repo.owner,
                 repo: github_1.context.repo.repo,
-                ref: (_c = github_1.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha,
+                ref: (_d = github_1.context.payload.pull_request) === null || _d === void 0 ? void 0 : _d.head.sha,
             });
-            core.info(JSON.stringify(checksForThisCommit));
-            const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === 'Check required approvals' &&
-                check.status === 'completed');
+            const approvalChecks = checksForThisCommit.data.check_runs.filter(check => check.name === process.env.GITHUB_JOB && check.status === 'completed');
             for (const approvalCheck of approvalChecks) {
-                const runId = (_e = (_d = approvalCheck.html_url) === null || _d === void 0 ? void 0 : _d.match(/\/runs\/(\d+)\//)) === null || _e === void 0 ? void 0 : _e[1];
+                const runId = (_f = (_e = approvalCheck.html_url) === null || _e === void 0 ? void 0 : _e.match(/\/runs\/(\d+)\//)) === null || _f === void 0 ? void 0 : _f[1];
                 if (runId) {
                     const workflowRun = yield octokit.rest.actions.getWorkflowRun({
                         owner: github_1.context.repo.owner,
@@ -109,7 +107,7 @@ function checkRequiredApprovals(config) {
                         run_id: parseInt(runId),
                     });
                     if (workflowRun.data.event === 'pull_request') {
-                        const jobId = (_g = (_f = approvalCheck === null || approvalCheck === void 0 ? void 0 : approvalCheck.html_url) === null || _f === void 0 ? void 0 : _f.match(/\/job\/(\d+)/)) === null || _g === void 0 ? void 0 : _g[1];
+                        const jobId = (_h = (_g = approvalCheck === null || approvalCheck === void 0 ? void 0 : approvalCheck.html_url) === null || _g === void 0 ? void 0 : _g.match(/\/job\/(\d+)/)) === null || _h === void 0 ? void 0 : _h[1];
                         if (jobId) {
                             // rerun the workflow job
                             core.info(`Re-running pull_request job ${jobId} to update status`);

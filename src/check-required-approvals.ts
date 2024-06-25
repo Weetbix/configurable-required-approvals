@@ -48,23 +48,21 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
     pull_number: context.payload.pull_request?.number ?? 0,
   })
 
+  core.info(`Found ${reviews.length} reviews.`)
+  for (const review of reviews) {
+    core.info(`- ${review?.user?.login}: (${review.state})`)
+  }
+
   // Always succeed on pull_request events when there are no reviews yet.
   // That way we will not get red Xs on the PR right away.
   if (context.eventName === 'pull_request' && reviews.length === 0) {
-    core.info('No reviews yet, skipping check.')
+    core.info('No reviews yet, skipping check so the PR gets a green tick.')
     return
   }
 
   // If the event is a pull_request_review, we should re-run the
   // push check, so that it updates its status.
   if (context.eventName === 'pull_request_review') {
-    core.info(
-      JSON.stringify({
-        jobID: context,
-        env: process.env,
-      }),
-    )
-
     // We need to:
     // - Find the check runs for this commit
     // - Find the workflow runs associated with the check runs
@@ -79,12 +77,9 @@ export async function checkRequiredApprovals(config: Config): Promise<void> {
       ref: context.payload.pull_request?.head.sha,
     })
 
-    core.info(JSON.stringify(checksForThisCommit))
-
     const approvalChecks = checksForThisCommit.data.check_runs.filter(
       check =>
-        check.name === 'Check required approvals' &&
-        check.status === 'completed',
+        check.name === process.env.GITHUB_JOB && check.status === 'completed',
     )
 
     for (const approvalCheck of approvalChecks) {
